@@ -1,3 +1,4 @@
+
 import streamlit as st
 import plotly.graph_objects as go
 import numpy as np
@@ -163,52 +164,46 @@ with tab2:
 with tab3:
     st.info("Monte Carlo Simulation: Predicting price paths using Geometric Brownian Motion.")
     
-    
 # ══════════════════════════════════════════════════
 # MICROSOFT FOUNDRY IQ — AI FINANCIAL AGENT
 # ══════════════════════════════════════════════════
-import os
 from groq import Groq
 
 st.markdown("---")
-st.subheader("💼 مساعد QuantLab المالي الذكي (Foundry IQ)")
-st.write("اسأل الوكيل الذكي عن التحليلات والعمليات المالية الحالية.")
+st.subheader("💼 QuantLab Smart Financial Agent (Foundry IQ)")
+st.write("Ask the AI agent about financial engineering, analysis, or market calculations. / اسأل الوكيل الذكي عن التحليلات والعمليات المالية.")
 
-# جلب المفتاح بأمان من ملف الأسرار
-GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
+GROQ_API_KEY = "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"
 
-if not GROQ_API_KEY:
-    st.info("يرجى إضافة مفتاح GROQ_API_KEY في إعدادات Streamlit لتفعيل الوكيل الذكي.")
-else:
+try:
     client = Groq(api_key=GROQ_API_KEY)
     
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "مرحباً بك! أنا وكيلك المالي الذكي المدعوم بـ Microsoft Foundry IQ. كيف يمكنني مساعدتك في تحليل بيانات الهندسة المالية والأسواق اليوم؟"}
+            {"role": "assistant", "content": "Welcome! I am your smart financial agent powered by Microsoft Foundry IQ. I support both English and Arabic. How can I help you with financial engineering analysis today? \n\nمرحباً بك! أنا وكيلك المالي الذكي المدعوم بـ Microsoft Foundry IQ. أدعم اللغتين العربية والإنجليزية. كيف يمكنني مساعدتك في تحليل بيانات الهندسة المالية اليوم؟"}
         ]
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
-    if user_input := st.chat_input("اكتب سؤالك المالي هنا..."):
+    if user_input := st.chat_input("Ask a financial question... / اكتب سؤالك المالي هنا..."):
         with st.chat_message("user"):
             st.write(user_input)
         st.session_state.messages.append({"role": "user", "content": user_input})
 
         with st.chat_message("assistant"):
-            with st.spinner("جاري التفكير والتحليل عبر طبقة Foundry IQ..."):
-                try:
-                    completion = client.chat.completions.create(
-                        model="llama3-8b-8192",
-                        messages=[
-                            {"role": "system", "content": "أنت مساعد مالي ذكي وخبير في الهندسة المالية (Financial Engineering) والتحليل الكمي وتعمل في هكاثون مايكروسوفت لـ Agents League. وظيفتك الإجابة على الأسئلة المالية بناءً على البيانات ومحاكاة ميزات Microsoft Foundry IQ لتوثيق الإجابات وتقليل الهلوسة البرمجية."},
-                            {"role": "user", "content": user_input}
-                        ]
-                    )
-                    ai_response = completion.choices[0].message.content
-                    st.write(ai_response)
-                    st.session_state.messages.append({"role": "assistant", "content": ai_response})
-                except Exception as e:
-                    st.error("عذراً، حدث خطأ أثناء الاتصال بالوكيل الذكي.")
-
+            with st.spinner("Analyzing via Foundry IQ layer... / جاري التفكير والتحليل..."):
+                completion = client.chat.completions.create(
+                    model="llama3-8b-8192",
+                    messages=[
+                        {"role": "system", "content": "You are an expert AI Financial Agent specialized in Financial Engineering and Quantitative Analysis for the Microsoft SkillsBuild Agents League Hackathon. Respond fluently in the language used by the user (English or Arabic). Simulate Microsoft Foundry IQ enterprise traits by ensuring high accuracy, deep technical financial context, and structured mathematical reasoning."}
+                    ] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]]
+                )
+                ai_response = completion.choices[0].message.content
+                st.write(ai_response)
+                st.session_state.messages.append({"role": "assistant", "content": ai_response})
+                st.rerun()
+                
+except Exception as e:
+    st.error(f"Connection Error: {str(e)}")
