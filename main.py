@@ -161,9 +161,17 @@ def render_portfolio_tab():
     try:
         end_date = datetime.today()
         start_date = end_date - timedelta(days=365)
-        data = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
         
-        returns = data.pct_change().dropna()
+        data = yf.download(tickers, start=start_date, end=end_date, group_by='ticker')
+        
+        closing_prices = pd.DataFrame()
+        for ticker in tickers:
+            if len(tickers) == 1:
+                closing_prices[ticker] = data['Adj Close']
+            else:
+                closing_prices[ticker] = data[ticker]['Adj Close']
+                
+        returns = closing_prices.pct_change().dropna()
         mean_returns = returns.mean() * 252
         cov_matrix = returns.cov() * 252
         
