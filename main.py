@@ -162,14 +162,14 @@ def render_portfolio_tab():
         end_date = datetime.today()
         start_date = end_date - timedelta(days=365)
         
-        data = yf.download(tickers, start=start_date, end=end_date, group_by='ticker')
+        # التعديل هنا لضمان جلب البيانات بشكل مستقر وسلس وإصلاح الـ MultiIndex
+        data = yf.download(tickers, start=start_date, end=end_date)
         
-        closing_prices = pd.DataFrame()
-        for ticker in tickers:
-            if len(tickers) == 1:
-                closing_prices[ticker] = data['Adj Close']
-            else:
-                closing_prices[ticker] = data[ticker]['Adj Close']
+        if len(tickers) == 1:
+            closing_prices = pd.DataFrame(data['Adj Close'])
+            closing_prices.columns = tickers
+        else:
+            closing_prices = data['Adj Close']
                 
         returns = closing_prices.pct_change().dropna()
         mean_returns = returns.mean() * 252
@@ -292,7 +292,6 @@ try:
             {"role": "assistant", "content": "Welcome! I am your smart financial agent powered by Microsoft Foundry IQ. You can now also upload context files or sheets directly. \n\nمرحباً بك! أنا وكيلك المالي الذكي المدعوم بـ Microsoft Foundry IQ. يمكنك الآن أيضاً تحميل ملفات البيانات أو الجداول مباشرة لتحليلها."}
         ]
 
-    # إضافة خانة تحميل الملفات والصور مباشرة فوق صندوق المحادثة
     uploaded_file = st.file_uploader("Upload financial data sheet or image context (CSV, XLSX, PDF, PNG, JPG)", type=["csv", "xlsx", "pdf", "png", "jpg"])
     
     file_context = ""
