@@ -195,7 +195,7 @@ try:
         with st.chat_message("assistant"):
             with st.spinner("Analyzing via Foundry IQ layer... / جاري التفكير والتحليل..."):
                 completion = client.chat.completions.create(
-                    model="llama3-8b-8192",
+                    model="llama-3.1-8b-instant",
                     messages=[
                         {"role": "system", "content": "You are an expert AI Financial Agent specialized in Financial Engineering and Quantitative Analysis for the Microsoft SkillsBuild Agents League Hackathon. Respond fluently in the language used by the user (English or Arabic). Simulate Microsoft Foundry IQ enterprise traits by ensuring high accuracy, deep technical financial context, and structured mathematical reasoning."}
                     ] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]]
