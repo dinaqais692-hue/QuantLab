@@ -206,7 +206,7 @@ else:
                             {"role": "user", "content": user_input}
                         ]
                     )
-                    ai_response = completion.choices.message.content
+                    ai_response = completion.choices[0].message.content
                     st.write(ai_response)
                     st.session_state.messages.append({"role": "assistant", "content": ai_response})
                 except Exception as e:
