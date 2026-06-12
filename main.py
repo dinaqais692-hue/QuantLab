@@ -274,7 +274,7 @@ with tab3:
     render_monte_carlo_tab()
     
 # ══════════════════════════════════════════════════
-# MICROSOFT FOUNDRY IQ — AI FINANCIAL AGENT
+# MICROSOFT FOUNDRY IQ — AI FINANCIAL AGENT (WITH FILE UPLOADER)
 # ══════════════════════════════════════════════════
 from groq import Groq
 
@@ -289,14 +289,30 @@ try:
     
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Welcome! I am your smart financial agent powered by Microsoft Foundry IQ. How can I help you with financial engineering analysis today? \n\nمرحباً بك! أنا وكيلك المالي الذكي المدعوم بـ Microsoft Foundry IQ. كيف يمكنني مساعدتك في تحليل بيانات الهندسة المالية اليوم؟"}
+            {"role": "assistant", "content": "Welcome! I am your smart financial agent powered by Microsoft Foundry IQ. You can now also upload context files or sheets directly. \n\nمرحباً بك! أنا وكيلك المالي الذكي المدعوم بـ Microsoft Foundry IQ. يمكنك الآن أيضاً تحميل ملفات البيانات أو الجداول مباشرة لتحليلها."}
         ]
+
+    # إضافة خانة تحميل الملفات والصور مباشرة فوق صندوق المحادثة
+    uploaded_file = st.file_uploader("Upload financial data sheet or image context (CSV, XLSX, PDF, PNG, JPG)", type=["csv", "xlsx", "pdf", "png", "jpg"])
+    
+    file_context = ""
+    if uploaded_file is not None:
+        st.success(f"📎 Attached file: {uploaded_file.name}")
+        if uploaded_file.name.endswith('.csv'):
+            df_preview = pd.read_csv(uploaded_file).head(5)
+            file_context = f"\n[User uploaded a data sheet preview:\n{df_preview.to_string()}]"
+        elif uploaded_file.name.endswith('.xlsx'):
+            df_preview = pd.read_excel(uploaded_file).head(5)
+            file_context = f"\n[User uploaded a spreadsheet preview:\n{df_preview.to_string()}]"
+        else:
+            file_context = f"\n[User uploaded an image or doc asset: {uploaded_file.name}]"
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
     if user_input := st.chat_input("Ask a financial question... / اكتب سؤالك المالي هنا..."):
+        full_prompt = user_input + file_context
         with st.chat_message("user"):
             st.write(user_input)
         st.session_state.messages.append({"role": "user", "content": user_input})
@@ -306,8 +322,8 @@ try:
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
-                        {"role": "system", "content": "You are an expert AI Financial Agent specialized in Financial Engineering and Quantitative Analysis for the Microsoft SkillsBuild Agents League Hackathon. Respond fluently in the language used by the user (English or Arabic). Simulate Microsoft Foundry IQ enterprise traits by ensuring high accuracy, deep technical financial context, and structured mathematical reasoning."}
-                    ] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]]
+                        {"role": "system", "content": "You are an expert AI Financial Agent specialized in Financial Engineering and Quantitative Analysis for the Microsoft SkillsBuild Agents League Hackathon. Respond fluently in the language used by the user. If the system includes structured data text from a user's uploaded document, parse and analyze it accurately."}
+                    ] + [{"role": "user" if m["role"]=="user" else "assistant", "content": m["content"]} for m in st.session_state.messages[-4:]] + [{"role": "user", "content": full_prompt}]
                 )
                 ai_response = completion.choices[0].message.content
                 st.write(ai_response)
