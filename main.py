@@ -1,4 +1,3 @@
-
 import streamlit as st
 import plotly.graph_objects as go
 import numpy as np
@@ -120,17 +119,17 @@ def section_header(title, subtitle, badge=None):
     st.caption(subtitle)
 
 # ══════════════════════════════════════════════════
-# MAIN RENDER FUNCTION
+# MAIN RENDER FUNCTIONS FOR TABS
 # ══════════════════════════════════════════════════
 def render_bs_tab():
     with st.sidebar:
-        st.header("Parameters")
-        S0 = st.slider("Stock Price (S)", 10.0, 200.0, 100.0)
-        K = st.slider("Strike Price (K)", 10.0, 200.0, 100.0)
-        T_max = st.slider("Time to Expiry (Y)", 0.1, 2.0, 1.0)
-        sigma = st.slider("Volatility (σ)", 0.05, 1.0, 0.2)
-        r = st.slider("Risk-free Rate (r)", 0.01, 0.15, 0.05)
-        opt_type = st.selectbox("Option Type", ["Call", "Put"])
+        st.header("Black-Scholes Params")
+        S0 = st.slider("Stock Price (S)", 10.0, 200.0, 100.0, key="bs_s")
+        K = st.slider("Strike Price (K)", 10.0, 200.0, 100.0, key="bs_k")
+        T_max = st.slider("Time to Expiry (Y)", 0.1, 2.0, 1.0, key="bs_t")
+        sigma = st.slider("Volatility (σ)", 0.05, 1.0, 0.2, key="bs_sig")
+        r = st.slider("Risk-free Rate (r)", 0.01, 0.15, 0.05, key="bs_r")
+        opt_type = st.selectbox("Option Type", ["Call", "Put"], key="bs_opt")
 
     section_header("Black-Scholes Engine", "Real-time derivatives pricing & 3D Visualization", "Live")
     
@@ -144,25 +143,127 @@ def render_bs_tab():
 
     S_vals, T_vals, Z = build_bs_surface(K, T_max, r, sigma, opt_type.lower())
     fig = go.Figure(data=[go.Surface(z=Z, x=S_vals, y=T_vals, colorscale="Plasma")])
-    fig.update_layout(**PLOT_LAYOUT, height=600, scene=dict(
+    fig.update_layout(**PLOT_LAYOUT, height=500, scene=dict(
         xaxis_title="Stock Price", yaxis_title="Time", zaxis_title="Option Price"
     ))
     st.plotly_chart(fig, use_container_width=True)
+
+def render_portfolio_tab():
+    with st.sidebar:
+        st.header("Portfolio Params")
+        tickers_input = st.text_input("Stocks Tickers (Comma separated)", "AAPL,MSFT,GOOGL,AMZN")
+        rf_rate = st.slider("Risk-free Rate (Sharpe)", 0.0, 0.1, 0.02, step=0.01)
+    
+    section_header("Markowitz Portfolio Optimization", "Modern Portfolio Theory (MPT) & Efficient Frontier", "Optimizer")
+    
+    tickers = [t.strip().upper() for t in tickers_input.split(",")]
+    
+    try:
+        end_date = datetime.today()
+        start_date = end_date - timedelta(days=365)
+        data = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
+        
+        returns = data.pct_change().dropna()
+        mean_returns = returns.mean() * 252
+        cov_matrix = returns.cov() * 252
+        
+        num_portfolios = 1000
+        results = np.zeros((3, num_portfolios))
+        weights_record = []
+        
+        for i in range(num_portfolios):
+            weights = np.random.random(len(tickers))
+            weights /= np.sum(weights)
+            weights_record.append(weights)
+            
+            p_return = np.sum(weights * mean_returns)
+            p_std = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+            results[0,i] = p_std
+            results[1,i] = p_return
+            results[2,i] = (p_return - rf_rate) / p_std
+            
+        max_sharpe_idx = np.argmax(results[2])
+        sdp, rp = results[0,max_sharpe_idx], results[1,max_sharpe_idx]
+        best_weights = weights_record[max_sharpe_idx]
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=results[0], y=results[1], mode='markers',
+                marker=dict(color=results[2], colorscale='Viridis', showscale=True, size=5),
+                name='Portfolios'
+            ))
+            fig.add_trace(go.Scatter(
+                x=[sdp], y=[rp], mode='markers',
+                marker=dict(color='red', size=12, symbol='star'),
+                name='Max Sharpe Ratio'
+            ))
+            fig.update_layout(**PLOT_LAYOUT, title="Efficient Frontier Surface", height=450, xaxis_title="Volatility", yaxis_title="Expected Return")
+            st.plotly_chart(fig, use_container_width=True)
+            
+        with col2:
+            st.markdown("### Optimal Allocation")
+            df_weights = pd.DataFrame({'Asset': tickers, 'Weight': best_weights})
+            df_weights['Weight'] = df_weights['Weight'].apply(lambda x: f"{x*100:.2f}%")
+            st.table(df_weights)
+            st.metric("Expected Return", f"{rp*100:.2f}%")
+            st.metric("Portfolio Volatility", f"{sdp*100:.2f}%")
+            
+    except Exception as e:
+        st.error(f"Please check tickers or connectivity: {e}")
+
+def render_monte_carlo_tab():
+    with st.sidebar:
+        st.header("Monte Carlo Params")
+        S_mc = st.number_input("Initial Price", value=100.0)
+        mu_mc = st.slider("Expected Return (μ)", -0.2, 0.5, 0.1)
+        sigma_mc = st.slider("Volatility (σ)", 0.05, 1.0, 0.2, key="mc_sig")
+        days_mc = st.slider("Simulation Horizon (Days)", 30, 365, 252)
+        sim_count = st.slider("Simulations Count", 10, 200, 50)
+        
+    section_header("Geometric Brownian Motion", "Stochastic Simulation for asset price paths", "Simulation")
+    
+    dt = 1 / 252
+    time_series = np.arange(days_mc)
+    fig = go.Figure()
+    
+    final_prices = []
+    for i in range(sim_count):
+        price_path = [S_mc]
+        for t in range(1, days_mc):
+            drift = (mu_mc - 0.5 * sigma_mc**2) * dt
+            shock = sigma_mc * np.random.normal() * np.sqrt(dt)
+            price_path.append(price_path[-1] * np.exp(drift + shock))
+        
+        final_prices.append(price_path[-1])
+        fig.add_trace(go.Scatter(y=price_path, mode='lines', opacity=0.4, line=dict(width=1.5), showlegend=False))
+        
+    fig.update_layout(**PLOT_LAYOUT, title="Simulated Geometric Brownian Motion Paths", height=450, xaxis_title="Timeline (Days)", yaxis_title="Asset Value ($)")
+    
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        st.plotly_chart(fig, use_container_width=True)
+    with c2:
+        st.markdown("### Path Analytics")
+        st.metric("Expected Ending Price", f"${np.mean(final_prices):.2f}")
+        st.metric("95% Value at Risk (VaR)", f"${(S_mc - np.percentile(final_prices, 5)):.2f}")
 
 # ══════════════════════════════════════════════════
 # APP ENTRY POINT
 # ══════════════════════════════════════════════════
 render_ticker()
-tab1, tab2, tab3 = st.tabs(["Black-Scholes", "Portfolio", "Monte Carlo"])
+tab1, tab2, tab3 = st.tabs(["Black-Scholes", "Portfolio Optimization", "Monte Carlo Simulation"])
 
 with tab1:
     render_bs_tab()
 
 with tab2:
-    st.info("Portfolio Optimization Module: Select tickers to begin analysis.")
+    render_portfolio_tab()
 
 with tab3:
-    st.info("Monte Carlo Simulation: Predicting price paths using Geometric Brownian Motion.")
+    render_monte_carlo_tab()
     
 # ══════════════════════════════════════════════════
 # MICROSOFT FOUNDRY IQ — AI FINANCIAL AGENT
@@ -180,7 +281,7 @@ try:
     
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Welcome! I am your smart financial agent powered by Microsoft Foundry IQ. I support both English and Arabic. How can I help you with financial engineering analysis today? \n\nمرحباً بك! أنا وكيلك المالي الذكي المدعوم بـ Microsoft Foundry IQ. أدعم اللغتين العربية والإنجليزية. كيف يمكنني مساعدتك في تحليل بيانات الهندسة المالية اليوم؟"}
+            {"role": "assistant", "content": "Welcome! I am your smart financial agent powered by Microsoft Foundry IQ. How can I help you with financial engineering analysis today? \n\nمرحباً بك! أنا وكيلك المالي الذكي المدعوم بـ Microsoft Foundry IQ. كيف يمكنني مساعدتك في تحليل بيانات الهندسة المالية اليوم؟"}
         ]
 
     for message in st.session_state.messages:
