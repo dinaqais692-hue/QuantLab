@@ -162,22 +162,25 @@ def render_portfolio_tab():
         end_date = datetime.today()
         start_date = end_date - timedelta(days=365)
         
-        # سحب كل سهم على حدة لتجنب مشاكل الـ MultiIndex المعقدة نهائياً
-        all_data = {}
+        closing_prices = pd.DataFrame()
+        
         for t in tickers:
             df = yf.download(t, start=start_date, end=end_date, progress=False)
             if not df.empty:
-                # التحقق من وجود Adj Close وإلا استخدام Close
+                # لتفادي الـ MultiIndex الناجم عن تحديث yfinance، نقوم بتسوية الأعمدة وتبسيط الأسماء
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                
+                # استخراج أسعار الإغلاق بأمان وإضافتها لـ DataFrame الرئيسي
                 if 'Adj Close' in df.columns:
-                    all_data[t] = df['Adj Close']
+                    closing_prices[t] = df['Adj Close']
                 elif 'Close' in df.columns:
-                    all_data[t] = df['Close']
+                    closing_prices[t] = df['Close']
         
-        if not all_data:
+        if closing_prices.empty:
             st.error("No data found for the provided tickers.")
             return
             
-        closing_prices = pd.DataFrame(all_data)
         closing_prices = closing_prices.ffill().bfill()
                 
         returns = closing_prices.pct_change().dropna()
@@ -343,4 +346,4 @@ try:
                     st.rerun()
                     
 except Exception as e:
-    st.error(f"Connection Error: {str(e)}")
+    st.error(f"Connection Error: {str(e)}")        
