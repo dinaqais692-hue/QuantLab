@@ -162,3 +162,53 @@ with tab2:
 
 with tab3:
     st.info("Monte Carlo Simulation: Predicting price paths using Geometric Brownian Motion.")
+    
+    
+# ══════════════════════════════════════════════════
+# MICROSOFT FOUNDRY IQ — AI FINANCIAL AGENT
+# ══════════════════════════════════════════════════
+import os
+from groq import Groq
+
+st.markdown("---")
+st.subheader("💼 مساعد QuantLab المالي الذكي (Foundry IQ)")
+st.write("اسأل الوكيل الذكي عن التحليلات والعمليات المالية الحالية.")
+
+# جلب المفتاح بأمان من ملف الأسرار
+GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
+
+if not GROQ_API_KEY:
+    st.info("يرجى إضافة مفتاح GROQ_API_KEY في إعدادات Streamlit لتفعيل الوكيل الذكي.")
+else:
+    client = Groq(api_key=GROQ_API_KEY)
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "مرحباً بك! أنا وكيلك المالي الذكي المدعوم بـ Microsoft Foundry IQ. كيف يمكنني مساعدتك في تحليل بيانات الهندسة المالية والأسواق اليوم؟"}
+        ]
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+
+    if user_input := st.chat_input("اكتب سؤالك المالي هنا..."):
+        with st.chat_message("user"):
+            st.write(user_input)
+        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        with st.chat_message("assistant"):
+            with st.spinner("جاري التفكير والتحليل عبر طبقة Foundry IQ..."):
+                try:
+                    completion = client.chat.completions.create(
+                        model="llama3-8b-8192",
+                        messages=[
+                            {"role": "system", "content": "أنت مساعد مالي ذكي وخبير في الهندسة المالية (Financial Engineering) والتحليل الكمي وتعمل في هكاثون مايكروسوفت لـ Agents League. وظيفتك الإجابة على الأسئلة المالية بناءً على البيانات ومحاكاة ميزات Microsoft Foundry IQ لتوثيق الإجابات وتقليل الهلوسة البرمجية."},
+                            {"role": "user", "content": user_input}
+                        ]
+                    )
+                    ai_response = completion.choices.message.content
+                    st.write(ai_response)
+                    st.session_state.messages.append({"role": "assistant", "content": ai_response})
+                except Exception as e:
+                    st.error("عذراً، حدث خطأ أثناء الاتصال بالوكيل الذكي.")
+
